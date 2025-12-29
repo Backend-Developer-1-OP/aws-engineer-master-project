@@ -1,2 +1,2 @@
 # aws-engineer-master-project
-repository fot an aws master project
+repository for an aws master project
