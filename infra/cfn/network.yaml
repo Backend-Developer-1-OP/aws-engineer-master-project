@@ -118,3 +118,23 @@ Outputs:
     Value: !Ref VPC
     Export:
       Name: VpcId
+
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: PublicSubnetA
+
+  PublicSubnetB:
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: PublicSubnetB
+
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: PrivateSubnetA
+
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: PrivateSubnetB

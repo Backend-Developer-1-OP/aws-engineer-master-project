@@ -4,7 +4,8 @@ Description: Security Groups
 Parameters:
   MyIP:
     Type: String
-    Description: 160.176.241.232/32
+    Default: 160.176.241.232/32
+    Description: Public IP
   AppPort:
     Type: Number
     Default: 3000
@@ -60,3 +61,28 @@ Resources:
           FromPort: 6379
           ToPort: 6379
           SourceSecurityGroupId: !Ref Ec2SG
+
+Outputs:
+  AlbSGId:
+    Description: "ALB Security Group ID"
+    Value: !Ref AlbSG
+    Export:
+      Name: AlbSG
+
+  Ec2SGId:
+    Description: "EC2 Security Group ID"
+    Value: !Ref Ec2SG
+    Export:
+      Name: Ec2SG
+
+  RdsSGId:
+    Description: "RDS Security Group ID"
+    Value: !Ref RdsSG
+    Export:
+      Name: RdsSG
+
+  RedisSGId:
+    Description: "Redis Security Group ID"
+    Value: !Ref RedisSG
+    Export:
+      Name: RedisSG
