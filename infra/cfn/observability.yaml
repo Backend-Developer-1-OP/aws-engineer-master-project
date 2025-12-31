@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Observability stack (CloudWatch Logs, Metrics, Alarms)
+
+Parameters:
+  AppErrorThreshold:
+    Type: Number
+    Default: 1
+  Alb5xxThreshold:
+    Type: Number
+    Default: 1
+
+Resources:
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /masterproject/app
+      RetentionInDays: 14
+
+  SystemLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /masterproject/system
+      RetentionInDays: 14
+
+  AppErrorMetricFilterSystem:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref SystemLogGroup
+      FilterPattern: ?error
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: MasterProject
+          MetricName: AppErrorCount
+
+  AppErrorMetricFilterApp:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref AppLogGroup
+      FilterPattern: ?error
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: MasterProject
+          MetricName: AppErrorCount
+
+  AppErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: AppErrorAlarm
+      Namespace: MasterProject
+      MetricName: AppErrorCount
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: !Ref AppErrorThreshold
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: []
+
+  Alb5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: Alb5xxAlarm
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_ELB_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !ImportValue AlbName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: !Ref Alb5xxThreshold
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: []
+
+Outputs:
+  AppLogGroupName:
+    Description: "CloudWatch Log Group for App"
+    Value: !Ref AppLogGroup
+    Export:
+      Name: AppLogGroupName
+
+  SystemLogGroupName:
+    Description: "CloudWatch Log Group for System"
+    Value: !Ref SystemLogGroup
+    Export:
+      Name: SystemLogGroupName
+
+  AppErrorAlarmName:
+    Description: "CloudWatch Alarm for App Errors"
+    Value: !Ref AppErrorAlarm
+    Export:
+      Name: AppErrorAlarmName
+
+  Alb5xxAlarmName:
+    Description: "CloudWatch Alarm for ALB 5xx Errors"
+    Value: !Ref Alb5xxAlarm
+    Export:
+      Name: Alb5xxAlarmName

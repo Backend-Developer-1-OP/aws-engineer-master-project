@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch Dashboard for MasterProject
+
+Resources:
+  MasterProjectDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: MasterProjectDashboard
+      DashboardBody: !Sub
+        - |
+          {
+            "widgets": [
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 0,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${AlbName}", { "stat": "p95" } ]
+                  ],
+                  "region": "eu-west-3",
+                  "title": "ALB TargetResponseTime (p95)"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 6,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "HTTPCode_ELB_4XX_Count", "LoadBalancer", "${AlbName}" ],
+                    [ "AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", "${AlbName}" ]
+                  ],
+                  "region": "eu-west-3",
+                  "title": "ALB 4XX/5XX"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 0,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/EC2", "CPUUtilization", "InstanceId", "i-062e8919f4bfb9a77" ],
+                    [ "AWS/EC2", "CPUUtilization", "InstanceId", "i-0a3a550f9d9f4e478" ]
+                  ],
+                  "region": "eu-west-3",
+                  "title": "EC2 CPU"
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 6,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "MasterProject", "AppErrorCount" ]
+                  ],
+                  "region": "eu-west-3",
+                  "title": "AppErrorCount"
+                }
+              }
+            ]
+          }
+        - AlbName: !ImportValue AlbName
+
+Outputs:
+  DashboardName:
+    Description: "CloudWatch Dashboard Name"
+    Value: !Ref MasterProjectDashboard
+    Export:
+      Name: MasterProjectDashboardName

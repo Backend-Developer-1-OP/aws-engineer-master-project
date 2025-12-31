@@ -4,7 +4,7 @@ Description: Compute stack (ALB, Target Group, LaunchTemplate, ASG)
 Parameters:
   AppPort:
     Type: Number
-    Default: 3000
+    Default: 80
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
@@ -97,12 +97,61 @@ Resources:
           Fn::Base64: !Sub |
             #!/bin/bash
             yum update -y
-            yum install -y python3 amazon-cloudwatch-agent aws-xray-daemon ruby wget
-            cd /home/ec2-user
-            wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
-            chmod +x ./install
-            ./install auto
-            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
+            yum install -y python3 git amazon-cloudwatch-agent codedeploy-agent
+            systemctl enable amazon-cloudwatch-agent codedeploy-agent
+            systemctl start amazon-cloudwatch-agent codedeploy-agent
+
+            # Download and install X-Ray daemon
+            curl -o /tmp/xray.rpm https://s3.us-east-2.amazonaws.com/aws-xray-assets.us-east-2/xray-daemon/aws-xray-daemon-3.x.rpm
+            yum install -y /tmp/xray.rpm
+
+            # Start X-Ray daemon
+            /usr/bin/xray -o --region eu-west-3 &
+            nohup /usr/bin/xray -o --region eu-west-3 >/var/log/xray.log 2>&1 &
+
+            # Temporary web application
+            pip3 install flask flask-cors
+            mkdir -p /app
+            cat <<EOF >/app/app.py
+            from flask import Flask, jsonify, request
+            from flask_cors import CORS
+            import time, random
+            from aws_xray_sdk.core import xray_recorder
+            from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+            from aws_xray_sdk.core import patch_all
+
+            app = Flask(__name__)
+            CORS(app)
+            patch_all()
+
+            xray_recorder.configure(service='MasterProjectAPI')
+            XRayMiddleware(app, xray_recorder)
+
+            @app.route("/test-trace")
+            def test_trace():
+                subsegment = xray_recorder.begin_subsegment('manual')
+                xray_recorder.end_subsegment()
+                return "trace test", 200
+
+            @app.route("/health")
+            def health():
+                return "ok", 200
+
+            @app.route("/items")
+            def items():
+                count = int(request.args.get("count", 10))
+                time.sleep(random.uniform(0.05, 0.2))
+                data = [{"id": i, "name": f"item-{i}"} for i in range(count)]
+                return jsonify(data), 200
+
+            @app.route("/error")
+            def error():
+                return "error", 500
+
+            app.run(host="0.0.0.0", port=${AppPort})
+            EOF
+
+            python3 /app/app.py &
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -118,3 +167,34 @@ Resources:
         - !ImportValue PrivateSubnetB
       TargetGroupARNs:
         - !Ref TargetGroup
+
+Outputs:
+  AlbArn:
+    Description: ALB ARN
+    Value: !Ref Alb
+    Export:
+      Name: AlbArn
+
+  AlbName:
+    Description: ALB full name (for CloudWatch dimensions)
+    Value: !GetAtt Alb.LoadBalancerFullName
+    Export:
+      Name: AlbName
+
+  AlbDNS:
+    Description: ALB DNS name
+    Value: !GetAtt Alb.DNSName
+    Export:
+      Name: AlbDNS
+
+  TargetGroupArn:
+    Description: Target Group ARN
+    Value: !Ref TargetGroup
+    Export:
+      Name: TargetGroupArn
+
+  AutoScalingGroupName:
+    Description: ASG Name
+    Value: !Ref AutoScalingGroup
+    Export:
+      Name: AsgName
