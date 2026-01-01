@@ -1,7 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Observability stack (CloudWatch Logs, Metrics, Alarms)
+Description: Observability stack (CloudWatch Metrics and Alarms)
 
 Parameters:
+  MetricNamespace:
+    Type: String
+    Default: MasterProject3
   AppErrorThreshold:
     Type: Number
     Default: 1
@@ -10,43 +13,33 @@ Parameters:
     Default: 1
 
 Resources:
-  AppLogGroup:
-    Type: AWS::Logs::LogGroup
+  # Metric filters on existing log groups
+  AppErrorMetricFilterApp:
+    Type: AWS::Logs::MetricFilter
     Properties:
-      LogGroupName: /masterproject/app
-      RetentionInDays: 14
-
-  SystemLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /masterproject/system
-      RetentionInDays: 14
+      LogGroupName: "/MasterProject3/app"
+      FilterPattern: ?error
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: !Ref MetricNamespace
+          MetricName: AppErrorCount
 
   AppErrorMetricFilterSystem:
     Type: AWS::Logs::MetricFilter
     Properties:
-      LogGroupName: !Ref SystemLogGroup
+      LogGroupName: "/MasterProject3/system"
       FilterPattern: ?error
       MetricTransformations:
         - MetricValue: "1"
-          MetricNamespace: MasterProject
+          MetricNamespace: !Ref MetricNamespace
           MetricName: AppErrorCount
 
-  AppErrorMetricFilterApp:
-    Type: AWS::Logs::MetricFilter
-    Properties:
-      LogGroupName: !Ref AppLogGroup
-      FilterPattern: ?error
-      MetricTransformations:
-        - MetricValue: "1"
-          MetricNamespace: MasterProject
-          MetricName: AppErrorCount
-
+  # CloudWatch alarms
   AppErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: AppErrorAlarm
-      Namespace: MasterProject
+      Namespace: !Ref MetricNamespace
       MetricName: AppErrorCount
       Statistic: Sum
       Period: 60
@@ -72,18 +65,6 @@ Resources:
       AlarmActions: []
 
 Outputs:
-  AppLogGroupName:
-    Description: "CloudWatch Log Group for App"
-    Value: !Ref AppLogGroup
-    Export:
-      Name: AppLogGroupName
-
-  SystemLogGroupName:
-    Description: "CloudWatch Log Group for System"
-    Value: !Ref SystemLogGroup
-    Export:
-      Name: SystemLogGroupName
-
   AppErrorAlarmName:
     Description: "CloudWatch Alarm for App Errors"
     Value: !Ref AppErrorAlarm

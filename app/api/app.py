@@ -2,9 +2,8 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import time, random
-from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.core import xray_recorder, patch_all
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
-from aws_xray_sdk.core import patch_all
 
 app = Flask(__name__)
 CORS(app)

@@ -97,21 +97,48 @@ Resources:
           Fn::Base64: !Sub |
             #!/bin/bash
             yum update -y
-            yum install -y python3 git amazon-cloudwatch-agent codedeploy-agent
-            systemctl enable amazon-cloudwatch-agent codedeploy-agent
-            systemctl start amazon-cloudwatch-agent codedeploy-agent
+            yum install -y python3 git amazon-cloudwatch-agent codedeploy-agent aws-xray-daemon
+            systemctl enable amazon-cloudwatch-agent codedeploy-agent xray
 
-            # Download and install X-Ray daemon
-            curl -o /tmp/xray.rpm https://s3.us-east-2.amazonaws.com/aws-xray-assets.us-east-2/xray-daemon/aws-xray-daemon-3.x.rpm
-            yum install -y /tmp/xray.rpm
-
-            # Start X-Ray daemon
-            /usr/bin/xray -o --region eu-west-3 &
-            nohup /usr/bin/xray -o --region eu-west-3 >/var/log/xray.log 2>&1 &
-
-            # Temporary web application
-            pip3 install flask flask-cors
+            # Create app folder and log file
             mkdir -p /app
+            touch /app/app.log
+            chmod 666 /app/app.log
+
+            # Configure CloudWatch Agent to collect logs
+            cat <<EOF >/opt/aws/amazon-cloudwatch-agent/bin/config.json
+            {
+              "logs": {
+                "logs_collected": {
+                  "files": {
+                    "collect_list": [
+                      {
+                        "file_path": "/app/app.log",
+                        "log_group_name": "/MasterProject3/app",
+                        "log_stream_name": "{instance_id}/app"
+                      },
+                      {
+                        "file_path": "/var/log/messages",
+                        "log_group_name": "/MasterProject3/system",
+                        "log_stream_name": "{instance_id}/messages"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            EOF
+
+            # Start CloudWatch Agent
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+              -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+
+            systemctl start amazon-cloudwatch-agent codedeploy-agent xray
+
+            # Install Python dependencies
+            pip3 install flask flask-cors aws-xray-sdk
+
+            # Create Flask app (unchanged)
             cat <<EOF >/app/app.py
             from flask import Flask, jsonify, request
             from flask_cors import CORS
@@ -124,7 +151,7 @@ Resources:
             CORS(app)
             patch_all()
 
-            xray_recorder.configure(service='MasterProjectAPI')
+            xray_recorder.configure(service='MasterProjectAPI', sampling=True)
             XRayMiddleware(app, xray_recorder)
 
             @app.route("/test-trace")
@@ -151,7 +178,12 @@ Resources:
             app.run(host="0.0.0.0", port=${AppPort})
             EOF
 
-            python3 /app/app.py &
+            # Start Flask app
+            if [ "${AppPort}" -lt 1024 ]; then
+              sudo python3 /app/app.py >> /app/app.log 2>&1 &
+            else
+              python3 /app/app.py >> /app/app.log 2>&1 &
+            fi
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup

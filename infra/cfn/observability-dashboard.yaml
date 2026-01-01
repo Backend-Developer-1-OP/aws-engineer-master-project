@@ -47,8 +47,8 @@ Resources:
                 "height": 6,
                 "properties": {
                   "metrics": [
-                    [ "AWS/EC2", "CPUUtilization", "InstanceId", "i-062e8919f4bfb9a77" ],
-                    [ "AWS/EC2", "CPUUtilization", "InstanceId", "i-0a3a550f9d9f4e478" ]
+                    [ "AWS/EC2", "CPUUtilization", "InstanceId", "${InstanceId1}" ],
+                    [ "AWS/EC2", "CPUUtilization", "InstanceId", "${InstanceId2}" ]
                   ],
                   "region": "eu-west-3",
                   "title": "EC2 CPU"
@@ -62,7 +62,7 @@ Resources:
                 "height": 6,
                 "properties": {
                   "metrics": [
-                    [ "MasterProject", "AppErrorCount" ]
+                    [ "MasterProject3", "AppErrorCount" ]
                   ],
                   "region": "eu-west-3",
                   "title": "AppErrorCount"
@@ -70,7 +70,10 @@ Resources:
               }
             ]
           }
-        - AlbName: !ImportValue AlbName
+        - 
+          AlbName: !ImportValue AlbName
+          InstanceId1: i-0fa4ea81e88991e74
+          InstanceId2: i-06b4f99a0134abaed
 
 Outputs:
   DashboardName:
