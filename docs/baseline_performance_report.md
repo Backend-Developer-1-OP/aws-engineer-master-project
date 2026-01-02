@@ -22,9 +22,9 @@
 ## Notes
 - Attach CloudWatch screenshots manually for ASG behavior.
 EC2 CPU Utilization
-![CPU Utilization](image.png)
+![CPU Utilization](pics/image-0.png)
 
 ALB Target Response
-![ALB Target Response](image-1.png)
+![ALB Target Response](pics/image-1.png)
 
 ALB HTTPCode_ELB_4XX_Count
